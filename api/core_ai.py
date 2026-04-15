@@ -6,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(current_dir, "glossary.json")) as f:
     GLOSSARY = json.load(f)
 
-client = OpenAI()
+# The client is initialized dynamically inside the function to prevent boot-crashes.
 
 SYSTEM_PROMPT = """
 You are CashCap AI, a humanitarian cash and market systems expert working in the context of Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and humanitarian coordination.
