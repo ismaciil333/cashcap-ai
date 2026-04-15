@@ -65,6 +65,11 @@ def check_glossary(user_question):
     return None, None
 
 def ask_cashcap_ai(user_question: str):
+    try:
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    except Exception as e:
+        return "Backend Error: Server failed to connect to OpenAI. Is OPENAI_API_KEY set?"
+
     term, definition = check_glossary(user_question)
 
     glossary_context = ""
