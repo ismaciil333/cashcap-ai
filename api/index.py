@@ -31,8 +31,9 @@ def ask_question(q: Question):
 # Serve frontend files natively from FastAPI for Render compatibility
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-@app.get("/")
-def read_root():
-    return FileResponse(os.path.join(base_dir, "index.html"))
+if os.path.exists(os.path.join(base_dir, "index.html")):
+    @app.get("/")
+    def read_root():
+        return FileResponse(os.path.join(base_dir, "index.html"))
 
-app.mount("/", StaticFiles(directory=base_dir), name="static")
+    app.mount("/", StaticFiles(directory=base_dir), name="static")
