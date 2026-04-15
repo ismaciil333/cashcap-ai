@@ -1,0 +1,6 @@
+# Ignore Python backend - served from Render, not Vercel
+*.py
+backend/
+__pycache__/
+requirements.txt
+*.log
