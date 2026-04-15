@@ -175,7 +175,7 @@ function onInputKeydown(e) {
 /* ===== SEND MESSAGE ===== */
 async function getAIResponse(message) {
   try {
-    const response = await fetch("/api/ask", {
+    const response = await fetch("https://cashcap-ai.onrender.com/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: message }),
