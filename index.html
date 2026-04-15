@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CashCap AI — Humanitarian Knowledge Assistant</title>
+  <meta name="description" content="CashCap AI is an expert humanitarian knowledge assistant specialized in Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and humanitarian coordination." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- App Shell -->
+  <div class="app-shell">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="logo-title">CashCap AI</h1>
+            <p class="logo-sub">Humanitarian Intelligence</p>
+          </div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Mode Toggle -->
+      <div class="mode-section">
+        <p class="section-label">Knowledge Level</p>
+        <div class="mode-toggle" id="modeToggle">
+          <button class="mode-btn active" id="internBtn" data-mode="intern">
+            <span class="mode-icon">🎓</span>
+            <span>Intern</span>
+          </button>
+          <button class="mode-btn" id="expertBtn" data-mode="expert">
+            <span class="mode-icon">⚡</span>
+            <span>Expert</span>
+          </button>
+        </div>
+        <p class="mode-desc" id="modeDesc">Mentor-like explanations with examples and context</p>
+      </div>
+
+      <!-- Document Upload -->
+      <div class="upload-section">
+        <p class="section-label">Document Library</p>
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <p class="upload-text">Drop PDF/DOCX here</p>
+          <p class="upload-sub">or click to browse</p>
+          <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt" multiple hidden />
+        </div>
+        <div class="doc-list" id="docList"></div>
+      </div>
+
+      <!-- Quick Topics -->
+      <div class="topics-section">
+        <p class="section-label">Quick Topics</p>
+        <div class="topic-chips">
+          <button class="topic-chip" data-query="What is Cash and Voucher Assistance (CVA)?">What is CVA?</button>
+          <button class="topic-chip" data-query="How to design a cash transfer program?">Design Cash Programs</button>
+          <button class="topic-chip" data-query="What is Multi-Purpose Cash Assistance (MPCA)?">MPCA Explained</button>
+          <button class="topic-chip" data-query="When to use cash vs in-kind assistance?">Cash vs In-Kind</button>
+          <button class="topic-chip" data-query="How to conduct a market assessment?">Market Assessment</button>
+          <button class="topic-chip" data-query="What are key CVA monitoring indicators?">Monitoring Indicators</button>
+          <button class="topic-chip" data-query="What is the role of Cash Working Groups?">Cash Working Groups</button>
+          <button class="topic-chip" data-query="Explain humanitarian accountability to affected populations">AAP Standards</button>
+        </div>
+      </div>
+
+      <!-- New Chat -->
+      <div class="sidebar-footer">
+        <button class="new-chat-btn" id="newChatBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Conversation
+        </button>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN AREA ===== -->
+    <main class="main-area">
+
+      <!-- Top Bar -->
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn" title="Toggle sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-center">
+          <div class="status-pill">
+            <span class="status-dot"></span>
+            <span id="statusText">Ready · <span id="modeLabel">Intern Mode</span></span>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="context-badges" id="contextBadges"></div>
+          <button class="sources-toggle-btn" id="sourcesToggleBtn" title="Toggle sources panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Sources
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <div class="content-wrapper">
+
+        <!-- Chat Panel -->
+        <div class="chat-panel" id="chatPanel">
+
+          <!-- Welcome Screen -->
+          <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-logo">
+              <div class="welcome-icon-ring">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                  <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                  <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h2 class="welcome-title">CashCap AI</h2>
+              <p class="welcome-subtitle">Your expert guide to Cash & Voucher Assistance, Market-Based Programming, and Humanitarian Coordination</p>
+            </div>
+
+            <div class="welcome-cards">
+              <div class="welcome-card" data-query="What is Cash and Voucher Assistance and how does it work?">
+                <div class="card-icon">💰</div>
+                <h3>CVA Fundamentals</h3>
+                <p>Learn core concepts of cash and voucher assistance</p>
+              </div>
+              <div class="welcome-card" data-query="How do I design a cash transfer program from scratch?">
+                <div class="card-icon">🏗️</div>
+                <h3>Program Design</h3>
+                <p>Step-by-step guidance on designing cash programs</p>
+              </div>
+              <div class="welcome-card" data-query="How to assess market functionality for cash programming?">
+                <div class="card-icon">📊</div>
+                <h3>Market Assessment</h3>
+                <p>Evaluate market conditions for cash feasibility</p>
+              </div>
+              <div class="welcome-card" data-query="What are the key risks in cash programming and how to mitigate them?">
+                <div class="card-icon">🛡️</div>
+                <h3>Risk Management</h3>
+                <p>Identify and mitigate cash programming risks</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Messages -->
+          <div class="messages-container" id="messagesContainer"></div>
+
+          <!-- Typing Indicator -->
+          <div class="typing-indicator" id="typingIndicator" style="display:none;">
+            <div class="ai-avatar small">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <!-- Input Area -->
+          <div class="input-area">
+            <div class="input-wrapper">
+              <button class="attach-btn" id="attachBtn" title="Attach document">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+              <textarea
+                id="chatInput"
+                placeholder="Ask about CVA, market assessment, program design..."
+                rows="1"
+                maxlength="2000"
+              ></textarea>
+              <button class="send-btn" id="sendBtn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+            <p class="input-hint">CashCap AI draws from CaLP, Sphere, WFP, UN-OCHA & field best practices</p>
+          </div>
+        </div>
+
+        <!-- Sources/Glossary Panel -->
+        <div class="sources-panel" id="sourcesPanel">
+          <div class="sources-header">
+            <h3>Reference Panel</h3>
+            <button class="close-sources" id="closeSourcesBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          
+          <div class="panel-tabs">
+            <button class="panel-tab active" id="tabSources">Sources</button>
+            <button class="panel-tab" id="tabGlossary">Glossary</button>
+          </div>
+
+          <div class="sources-content" id="sourcesContent">
+            <div class="sources-empty">
+              <div class="sources-empty-icon">📚</div>
+              <p>Sources will appear here after your first query</p>
+            </div>
+          </div>
+          
+          <div class="glossary-content" id="glossaryContent" style="display:none;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="knowledge.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
