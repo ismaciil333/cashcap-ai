@@ -430,3 +430,11 @@ WARNING:  StatReload detected changes in 'api.py'. Reloading...
 INFO:     Started server process [35083]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'core_ai.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [35083]
+INFO:     Started server process [35188]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

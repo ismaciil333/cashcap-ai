@@ -2,7 +2,8 @@ import json
 import os
 from openai import OpenAI
 
-with open("glossary.json") as f:
+_dir = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(_dir, "glossary.json")) as f:
     GLOSSARY = json.load(f)
 
 SYSTEM_PROMPT = """
