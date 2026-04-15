@@ -142,16 +142,16 @@ function switchPanelTab(tab) {
 
 function renderGlossaryPanel() {
   if (!window.FULL_GLOSSARY) return;
-  
-  const entries = Object.entries(window.FULL_GLOSSARY).sort((a,b) => a[0].localeCompare(b[0]));
-  
+
+  const entries = Object.entries(window.FULL_GLOSSARY).sort((a, b) => a[0].localeCompare(b[0]));
+
   const html = entries.map(([term, def]) => `
     <div class="glossary-item">
       <div class="glossary-term">${escapeHtml(term)}</div>
       <div class="glossary-def">${escapeHtml(def)}</div>
     </div>
   `).join('');
-  
+
   els.glossaryContent.innerHTML = html;
 }
 
@@ -175,9 +175,11 @@ function onInputKeydown(e) {
 /* ===== SEND MESSAGE ===== */
 async function getAIResponse(message) {
   try {
-    const response = await fetch("https://cashcap-ai.onrender.com/api/ask", {
+    const response = await fetch("https://cashcap-ai.onrender.com/ask", {  // ✅ RIKTIG ENDPOINT
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ question: message }),
     });
 
@@ -192,9 +194,10 @@ async function getAIResponse(message) {
 
     const data = await response.json();
     return data.answer;
+
   } catch (error) {
     console.error("API error:", error);
-    return "⚠️ Error connecting to CashCap AI backend. Make sure the FastAPI server is running on port 8000.";
+    return "⚠️ Error connecting to CashCap AI backend.";
   }
 }
 
@@ -229,7 +232,7 @@ async function handleQuery(query) {
 
   // Add user message
   addMessage('user', query);
-  
+
   // Fast glossary detection feedback in UI
   detectGlossary(query);
 
@@ -445,10 +448,10 @@ function addUploadedDocToKnowledge(file, docData) {
   };
   try {
     if (file.type === 'text/plain') reader.readAsText(file);
-  } catch(_) {}
+  } catch (_) { }
 }
 
-window.removeDoc = function(id) {
+window.removeDoc = function (id) {
   state.uploadedDocs = state.uploadedDocs.filter(d => d.id !== id);
   const el = document.getElementById(`docitem_${id}`);
   if (el) el.remove();
@@ -458,7 +461,7 @@ window.removeDoc = function(id) {
 };
 
 /* ===== COPY BUTTON ===== */
-window.copyText = function(btn, e) {
+window.copyText = function (btn, e) {
   const bubble = btn.closest('.message-content').querySelector('.ai-bubble');
   if (!bubble) return;
   const text = bubble.innerText;
@@ -516,5 +519,5 @@ function formatTime(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 function escapeHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

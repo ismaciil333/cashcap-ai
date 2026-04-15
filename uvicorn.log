@@ -426,3 +426,7 @@ Traceback (most recent call last):
   File "/Users/ismaciilsulub/.gemini/antigravity/scratch/cashcap-ai/backend/index.py", line 7, in <module>
     from core_ai import ask_cashcap_ai
 ModuleNotFoundError: No module named 'core_ai'
+WARNING:  StatReload detected changes in 'api.py'. Reloading...
+INFO:     Started server process [35083]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
