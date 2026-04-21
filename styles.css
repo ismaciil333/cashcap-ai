@@ -517,6 +517,82 @@ ul {
   flex-shrink: 0;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Home button — always visible in topbar center */
+.home-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--grad-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: all 0.2s var(--ease-smooth);
+  cursor: pointer;
+  color: white;
+}
+
+.home-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: #3b82f6;
+  flex-shrink: 0;
+}
+
+.home-btn:hover {
+  background: rgba(59, 130, 246, 0.08);
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.home-btn:hover svg {
+  stroke: var(--text-primary);
+}
+
+/* Back button — shown only during chat */
+.back-btn {
+  display: none; /* toggled via JS */
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s var(--ease-smooth);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.back-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.back-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--brand-primary);
+  color: var(--brand-electric);
+}
+
 .menu-btn {
   width: 36px;
   height: 36px;

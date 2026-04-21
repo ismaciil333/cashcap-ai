@@ -20,6 +20,8 @@ const els = {
   sidebar: $('sidebar'),
   sidebarToggle: $('sidebarToggle'),
   menuBtn: $('menuBtn'),
+  homeBtn: $('homeBtn'),
+  backBtn: $('backBtn'),
   internBtn: $('internBtn'),
   expertBtn: $('expertBtn'),
   modeDesc: $('modeDesc'),
@@ -99,6 +101,12 @@ function bindEvents() {
 
   // Render glossary into panel
   renderGlossaryPanel();
+
+  // Home button → reset to welcome screen
+  els.homeBtn.addEventListener('click', resetChat);
+
+  // Back button → reset to welcome screen
+  els.backBtn.addEventListener('click', resetChat);
 
   // New chat
   els.newChatBtn.addEventListener('click', resetChat);
@@ -261,6 +269,8 @@ async function handleQuery(query) {
 function showChat() {
   els.welcomeScreen.style.display = 'none';
   els.messagesContainer.classList.add('visible');
+  // Show back button when chat is active
+  els.backBtn.style.display = 'flex';
 }
 
 function addMessage(role, content, sources = []) {
@@ -481,6 +491,8 @@ function resetChat() {
   els.messagesContainer.classList.remove('visible');
   els.welcomeScreen.style.display = '';
   els.contextBadges.innerHTML = '';
+  // Hide back button when back on welcome screen
+  els.backBtn.style.display = 'none';
   els.sourcesContent.innerHTML = `
     <div class="sources-empty">
       <div class="sources-empty-icon">📚</div>
