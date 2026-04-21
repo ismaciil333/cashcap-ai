@@ -1,5 +1,6 @@
 import json
 import os
+from openai import OpenAI
 
 _dir = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(_dir, "glossary.json")) as f:
@@ -55,16 +56,14 @@ def check_glossary(user_question):
     return None, None
 
 def ask_cashcap_ai(user_question: str):
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        return "⚠️ **Server Configuration Error**: `GEMINI_API_KEY` is not set on the backend. Please add it in your Render dashboard under Environment Variables."
+        return "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend. Please add it in your Render dashboard under Environment Variables."
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        client = OpenAI(api_key=api_key)
     except Exception as e:
-        return f"⚠️ **Backend Error**: Failed to initialise Gemini — {str(e)}"
+        return f"⚠️ **Backend Error**: Failed to initialise OpenAI client — {str(e)}"
 
     term, definition = check_glossary(user_question)
 
@@ -86,7 +85,14 @@ Start your answer with this exact definition.
 """
 
     try:
-        response = model.generate_content(full_prompt)
-        return response.text
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": full_prompt}
+            ],
+            temperature=0.3
+        )
+        return response.choices[0].message.content
     except Exception as e:
         return f"⚠️ **AI Error**: {str(e)}"
