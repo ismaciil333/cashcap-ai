@@ -40,8 +40,11 @@ def check_glossary(user_question):
     return None, None
 
 def ask_cashcap_ai(user_question: str):
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return "⚠️ Server Configuration Error: OPENAI_API_KEY is missing on the backend. Please configure it in your Render dashboard."
 
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))  # 🔥 FIX
+    client = OpenAI(api_key=api_key)  # 🔥 FIX
 
     term, definition = check_glossary(user_question)
 
