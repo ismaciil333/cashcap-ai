@@ -97,7 +97,10 @@ function bindEvents() {
   els.sourcesToggleBtn.addEventListener('click', toggleSources);
   els.closeSourcesBtn.addEventListener('click', () => setSources(false));
   els.tabSources.addEventListener('click', () => switchPanelTab('sources'));
-  els.tabGlossary.addEventListener('click', () => switchPanelTab('glossary'));
+  els.tabGlossary.addEventListener('click', () => {
+    switchPanelTab('glossary');
+    loadGlossaryFromAPI();   // lazy-load on first open
+  });
 
   // Render glossary into panel
   renderGlossaryPanel();
@@ -148,20 +151,122 @@ function switchPanelTab(tab) {
   els.glossaryContent.style.display = isSources ? 'none' : 'block';
 }
 
-function renderGlossaryPanel() {
-  if (!window.FULL_GLOSSARY) return;
+/* ─── Glossary state ──────────────────────────────────────────────────────── */
+let _glossaryData = [];   // [{term, definition, source}]
+let _glossaryLoaded = false;
 
-  const entries = Object.entries(window.FULL_GLOSSARY).sort((a, b) => a[0].localeCompare(b[0]));
+async function loadGlossaryFromAPI() {
+  if (_glossaryLoaded) return;
+  const listEl = document.getElementById('glossaryList');
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="glossary-loading">⏳ Loading glossary…</div>`;
 
-  const html = entries.map(([term, def]) => `
+  try {
+    const res = await fetch('https://cashcap-ai.onrender.com/glossary');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _glossaryData = await res.json();
+    _glossaryLoaded = true;
+    renderGlossaryList(_glossaryData);
+    bindGlossarySearch();
+  } catch (err) {
+    // Fallback: use window.FULL_GLOSSARY from knowledge.js
+    if (window.FULL_GLOSSARY) {
+      _glossaryData = Object.entries(window.FULL_GLOSSARY)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([term, definition]) => ({ term, definition, source: 'CashCap Glossary' }));
+      _glossaryLoaded = true;
+      renderGlossaryList(_glossaryData);
+      bindGlossarySearch();
+    } else {
+      listEl.innerHTML = `<div class="glossary-loading">⚠️ Could not load glossary.</div>`;
+    }
+  }
+}
+
+function renderGlossaryList(entries) {
+  const listEl = document.getElementById('glossaryList');
+  if (!listEl) return;
+
+  // Update tab badge count
+  const tab = document.getElementById('tabGlossary');
+  if (tab) tab.textContent = `Glossary (${entries.length})`;
+
+  if (entries.length === 0) {
+    listEl.innerHTML = `<div class="glossary-loading">No terms match your search.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = entries.map(({ term, definition, source }) => `
     <div class="glossary-item">
-      <div class="glossary-term">${escapeHtml(term)}</div>
-      <div class="glossary-def">${escapeHtml(def)}</div>
+      <div class="glossary-term-row">
+        <span class="glossary-term">${escapeHtml(term)}</span>
+        <span class="glossary-source-badge">${escapeHtml(source || 'CashCap')}</span>
+      </div>
+      <div class="glossary-def">${escapeHtml(definition)}</div>
     </div>
   `).join('');
-
-  els.glossaryContent.innerHTML = html;
 }
+
+function bindGlossarySearch() {
+  const searchEl = document.getElementById('glossarySearch');
+  if (!searchEl) return;
+  searchEl.addEventListener('input', () => {
+    const q = searchEl.value.trim().toLowerCase();
+    const filtered = q
+      ? _glossaryData.filter(e =>
+          e.term.toLowerCase().includes(q) ||
+          e.definition.toLowerCase().includes(q))
+      : _glossaryData;
+    renderGlossaryList(filtered);
+  });
+}
+
+/* ── Legacy stub (called from bindEvents) — now triggers async load ──────── */
+function renderGlossaryPanel() {
+  // Will be populated when user opens the Glossary tab
+}
+
+/* ── Highlight glossary terms inside an AI bubble ────────────────────────── */
+function highlightGlossaryTerms(bubbleEl) {
+  if (!_glossaryLoaded || _glossaryData.length === 0) return;
+
+  // Build a sorted-by-length-desc list of terms for greedy matching
+  const terms = _glossaryData
+    .map(e => e.term)
+    .sort((a, b) => b.length - a.length);
+
+  // Walk text nodes, wrap known terms with <abbr>
+  const walker = document.createTreeWalker(bubbleEl, NodeFilter.SHOW_TEXT);
+  const toReplace = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    // Skip nodes already inside an <abbr>
+    if (node.parentElement.closest('abbr.glossary-tip')) continue;
+    toReplace.push(node);
+  }
+
+  toReplace.forEach(textNode => {
+    let html = escapeHtml(textNode.textContent);
+    let replaced = false;
+    for (const term of terms) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b(${escaped})\\b`, 'g');
+      if (regex.test(html)) {
+        const def = _glossaryData.find(e => e.term === term)?.definition || '';
+        html = html.replace(regex,
+          `<abbr class="glossary-tip" title="${escapeHtml(def)}" data-term="${escapeHtml(term)}">$1</abbr>`);
+        replaced = true;
+      }
+    }
+    if (replaced) {
+      const span = document.createElement('span');
+      span.innerHTML = html;
+      textNode.parentNode.replaceChild(span, textNode);
+    }
+  });
+}
+
+
 
 /* ===== INPUT HANDLING ===== */
 function onInputChange() {
@@ -330,6 +435,8 @@ function createMessageEl({ role, content, sources, time }) {
 
     msgContent.appendChild(bubble);
     msgContent.appendChild(meta);
+    // Highlight known glossary terms in the AI response
+    requestAnimationFrame(() => highlightGlossaryTerms(bubble));
   } else {
     const bubble = document.createElement('div');
     bubble.className = 'bubble user-bubble';

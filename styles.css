@@ -1511,9 +1511,9 @@ textarea#chatInput::placeholder {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-  transition: all 0.2s;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 .glossary-item:hover {
@@ -1521,18 +1521,113 @@ textarea#chatInput::placeholder {
   background: var(--bg-elevated);
 }
 
+.glossary-term-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
 .glossary-term {
   color: var(--accent-cyan);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 12px;
-  margin-bottom: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em;
+}
+
+.glossary-source-badge {
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .glossary-def {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 12px;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* Search bar inside glossary panel */
+.glossary-search-wrap {
+  padding: 2px 0 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 2;
+}
+
+.glossary-search {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-normal);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.glossary-search::placeholder {
+  color: var(--text-muted);
+}
+
+.glossary-search:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+
+.glossary-loading {
+  text-align: center;
+  padding: 20px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── In-bubble glossary term tooltip ─────────────────────────────────────── */
+abbr.glossary-tip {
+  text-decoration: underline dotted rgba(34, 211, 238, 0.6);
+  text-underline-offset: 3px;
+  color: var(--accent-cyan);
+  cursor: help;
+  font-style: normal;
+  position: relative;
+}
+
+abbr.glossary-tip:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  border: 1px solid var(--border-normal);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: normal;
+  max-width: 240px;
+  width: max-content;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 100;
+  pointer-events: none;
+}
+
+
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
