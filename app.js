@@ -5,10 +5,11 @@
 
 /* ===== STATE ===== */
 const state = {
-  mode: 'intern',           // 'intern' | 'expert'
+  mode: 'intern',
   messages: [],
   uploadedDocs: [],
   sourcesOpen: false,
+  glossaryOpen: false,
   currentSources: [],
   isThinking: false,
   sidebarOpen: true,
@@ -37,13 +38,16 @@ const els = {
   chatInput: $('chatInput'),
   sendBtn: $('sendBtn'),
   attachBtn: $('attachBtn'),
+  // Sources panel
   sourcesToggleBtn: $('sourcesToggleBtn'),
   sourcesPanel: $('sourcesPanel'),
   closeSourcesBtn: $('closeSourcesBtn'),
   sourcesContent: $('sourcesContent'),
-  tabSources: $('tabSources'),
-  tabGlossary: $('tabGlossary'),
-  glossaryContent: $('glossaryContent'),
+  // Glossary panel
+  glossaryToggleBtn: $('glossaryToggleBtn'),
+  glossaryPanel: $('glossaryPanel'),
+  closeGlossaryBtn: $('closeGlossaryBtn'),
+  glossaryCountBadge: $('glossaryCountBadge'),
   contextBadges: $('contextBadges'),
   newChatBtn: $('newChatBtn'),
 };
@@ -93,25 +97,17 @@ function bindEvents() {
     card.addEventListener('click', () => handleQuery(card.dataset.query));
   });
 
-  // Sources panel tabs
+  // Sources panel
   els.sourcesToggleBtn.addEventListener('click', toggleSources);
   els.closeSourcesBtn.addEventListener('click', () => setSources(false));
-  els.tabSources.addEventListener('click', () => switchPanelTab('sources'));
-  els.tabGlossary.addEventListener('click', () => {
-    switchPanelTab('glossary');
-    loadGlossaryFromAPI();   // lazy-load on first open
-  });
 
-  // Render glossary into panel
-  renderGlossaryPanel();
+  // Glossary panel
+  els.glossaryToggleBtn.addEventListener('click', toggleGlossary);
+  els.closeGlossaryBtn.addEventListener('click', () => setGlossary(false));
 
-  // Home button → reset to welcome screen
+  // Home button
   els.homeBtn.addEventListener('click', resetChat);
-
-  // Back button → reset to welcome screen
   els.backBtn.addEventListener('click', resetChat);
-
-  // New chat
   els.newChatBtn.addEventListener('click', resetChat);
 }
 
@@ -133,23 +129,28 @@ function toggleSidebar() {
 }
 
 /* ===== SOURCES PANEL ===== */
-function toggleSources() {
-  setSources(!state.sourcesOpen);
-}
+function toggleSources() { setSources(!state.sourcesOpen); }
 function setSources(open) {
   state.sourcesOpen = open;
   els.sourcesPanel.classList.toggle('open', open);
   els.sourcesToggleBtn.classList.toggle('active', open);
+  // Mutual exclusion: close glossary if opening sources
+  if (open) setGlossary(false);
 }
 
-/* ===== REFERENCE PANEL TABS ===== */
-function switchPanelTab(tab) {
-  const isSources = tab === 'sources';
-  els.tabSources.classList.toggle('active', isSources);
-  els.tabGlossary.classList.toggle('active', !isSources);
-  els.sourcesContent.style.display = isSources ? 'block' : 'none';
-  els.glossaryContent.style.display = isSources ? 'none' : 'block';
+/* ===== GLOSSARY PANEL ===== */
+function toggleGlossary() { setGlossary(!state.glossaryOpen); }
+function setGlossary(open) {
+  state.glossaryOpen = open;
+  els.glossaryPanel.classList.toggle('open', open);
+  els.glossaryToggleBtn.classList.toggle('active', open);
+  // Mutual exclusion
+  if (open) {
+    setSources(false);
+    loadGlossaryFromAPI();
+  }
 }
+
 
 /* ─── Glossary state ──────────────────────────────────────────────────────── */
 let _glossaryData = [];   // [{term, definition, source}]
@@ -187,9 +188,9 @@ function renderGlossaryList(entries) {
   const listEl = document.getElementById('glossaryList');
   if (!listEl) return;
 
-  // Update tab badge count
-  const tab = document.getElementById('tabGlossary');
-  if (tab) tab.textContent = `Glossary (${entries.length})`;
+  // Update count badge
+  const badge = document.getElementById('glossaryCountBadge');
+  if (badge) badge.textContent = _glossaryData.length > 0 ? _glossaryData.length : '';
 
   if (entries.length === 0) {
     listEl.innerHTML = `<div class="glossary-loading">No terms match your search.</div>`;
@@ -197,7 +198,7 @@ function renderGlossaryList(entries) {
   }
 
   listEl.innerHTML = entries.map(({ term, definition, source }) => `
-    <div class="glossary-item">
+    <div class="glossary-item" id="gterm-${escapeHtml(term.replace(/[^a-zA-Z0-9]/g,'_'))}">
       <div class="glossary-term-row">
         <span class="glossary-term">${escapeHtml(term)}</span>
         <span class="glossary-source-badge">${escapeHtml(source || 'CashCap')}</span>
@@ -261,6 +262,19 @@ function highlightGlossaryTerms(bubbleEl) {
     if (replaced) {
       const span = document.createElement('span');
       span.innerHTML = html;
+      // Wire click on highlighted terms → open glossary panel + scroll to entry
+      span.querySelectorAll('abbr.glossary-tip').forEach(el => {
+        el.addEventListener('click', () => {
+          const term = el.dataset.term;
+          setGlossary(true);
+          // After panel opens and renders, scroll to the term
+          setTimeout(() => {
+            const id = 'gterm-' + term.replace(/[^a-zA-Z0-9]/g, '_');
+            const entry = document.getElementById(id);
+            if (entry) entry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 350);
+        });
+      });
       textNode.parentNode.replaceChild(span, textNode);
     }
   });

@@ -1558,12 +1558,56 @@ textarea#chatInput::placeholder {
 }
 
 /* Search bar inside glossary panel */
+/* Glossary button — cyan accent to distinguish from Sources */
+.glossary-toggle-btn {
+  border-color: rgba(34, 211, 238, 0.3) !important;
+}
+.glossary-toggle-btn.active,
+.glossary-toggle-btn:hover {
+  background: rgba(34, 211, 238, 0.1) !important;
+  border-color: var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+}
+.glossary-toggle-btn svg {
+  stroke: currentColor;
+}
+
+/* Glossary panel — same position/animation as Sources panel */
+.glossary-panel {
+  /* inherits .sources-panel layout; just override title area */
+}
+
+/* Title row inside glossary panel header */
+.glossary-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.glossary-panel-title h3 {
+  margin: 0;
+}
+
+/* Count badge (e.g. "118") */
+.glossary-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 1px 6px;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  letter-spacing: 0.03em;
+}
+
+/* Search bar (inside glossary panel, above scrollable list) */
 .glossary-search-wrap {
-  padding: 2px 0 12px;
-  position: sticky;
-  top: 0;
+  padding: 8px 16px 4px;
+  flex-shrink: 0;
   background: var(--bg-card);
-  z-index: 2;
 }
 
 .glossary-search {
