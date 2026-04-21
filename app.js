@@ -8,8 +8,8 @@ const state = {
   mode: 'intern',
   messages: [],
   uploadedDocs: [],
-  sourcesOpen: false,
-  glossaryOpen: false,
+  rightPanelOpen: false,   // mobile only
+  activeTab: 'glossary',  // 'glossary' | 'sources'
   currentSources: [],
   isThinking: false,
   sidebarOpen: true,
@@ -38,16 +38,15 @@ const els = {
   chatInput: $('chatInput'),
   sendBtn: $('sendBtn'),
   attachBtn: $('attachBtn'),
-  // Sources panel
-  sourcesToggleBtn: $('sourcesToggleBtn'),
-  sourcesPanel: $('sourcesPanel'),
-  closeSourcesBtn: $('closeSourcesBtn'),
+  // Unified right panel
+  rightPanel: $('rightPanel'),
+  panelToggleBtn: $('panelToggleBtn'),
+  closeRightPanelBtn: $('closeRightPanelBtn'),
+  tabGlossary: $('tabGlossary'),
+  tabSources: $('tabSources'),
+  glossaryPane: $('glossaryPane'),
+  sourcesPane: $('sourcesPane'),
   sourcesContent: $('sourcesContent'),
-  // Glossary panel
-  glossaryToggleBtn: $('glossaryToggleBtn'),
-  glossaryPanel: $('glossaryPanel'),
-  closeGlossaryBtn: $('closeGlossaryBtn'),
-  glossaryCountBadge: $('glossaryCountBadge'),
   contextBadges: $('contextBadges'),
   newChatBtn: $('newChatBtn'),
 };
@@ -97,18 +96,25 @@ function bindEvents() {
     card.addEventListener('click', () => handleQuery(card.dataset.query));
   });
 
-  // Sources panel
-  els.sourcesToggleBtn.addEventListener('click', toggleSources);
-  els.closeSourcesBtn.addEventListener('click', () => setSources(false));
+  // Right panel: tabs
+  els.tabGlossary.addEventListener('click', () => switchTab('glossary'));
+  els.tabSources.addEventListener('click', () => switchTab('sources'));
 
-  // Glossary panel
-  els.glossaryToggleBtn.addEventListener('click', toggleGlossary);
-  els.closeGlossaryBtn.addEventListener('click', () => setGlossary(false));
+  // Mobile toggle
+  if (els.panelToggleBtn) {
+    els.panelToggleBtn.addEventListener('click', toggleRightPanel);
+  }
+  if (els.closeRightPanelBtn) {
+    els.closeRightPanelBtn.addEventListener('click', () => setRightPanel(false));
+  }
 
-  // Home button
+  // Navigation
   els.homeBtn.addEventListener('click', resetChat);
   els.backBtn.addEventListener('click', resetChat);
   els.newChatBtn.addEventListener('click', resetChat);
+
+  // Auto-load glossary immediately on boot
+  loadGlossaryFromAPI();
 }
 
 /* ===== MODE ===== */
@@ -128,29 +134,33 @@ function toggleSidebar() {
   els.sidebar.classList.toggle('collapsed', !state.sidebarOpen);
 }
 
-/* ===== SOURCES PANEL ===== */
-function toggleSources() { setSources(!state.sourcesOpen); }
+/* ===== UNIFIED RIGHT PANEL ===== */
+function switchTab(tab) {
+  state.activeTab = tab;
+  const isGlossary = tab === 'glossary';
+  els.tabGlossary.classList.toggle('active', isGlossary);
+  els.tabSources.classList.toggle('active', !isGlossary);
+  els.glossaryPane.style.display = isGlossary ? 'flex' : 'none';
+  els.sourcesPane.style.display = isGlossary ? 'none' : 'flex';
+}
+
+/* Mobile only: open/close the right panel as overlay */
+function toggleRightPanel() { setRightPanel(!state.rightPanelOpen); }
+function setRightPanel(open) {
+  state.rightPanelOpen = open;
+  els.rightPanel.classList.toggle('open', open);
+  if (els.panelToggleBtn) els.panelToggleBtn.classList.toggle('active', open);
+}
+
+/* Legacy compat — keep setSources working so source cards still populate */
 function setSources(open) {
-  state.sourcesOpen = open;
-  els.sourcesPanel.classList.toggle('open', open);
-  els.sourcesToggleBtn.classList.toggle('active', open);
-  // Mutual exclusion: close glossary if opening sources
-  if (open) setGlossary(false);
+  if (open) switchTab('sources');
 }
 
-/* ===== GLOSSARY PANEL ===== */
-function toggleGlossary() { setGlossary(!state.glossaryOpen); }
+/* Keep setGlossary for glossary-tip click */
 function setGlossary(open) {
-  state.glossaryOpen = open;
-  els.glossaryPanel.classList.toggle('open', open);
-  els.glossaryToggleBtn.classList.toggle('active', open);
-  // Mutual exclusion
-  if (open) {
-    setSources(false);
-    loadGlossaryFromAPI();
-  }
+  if (open) switchTab('glossary');
 }
-
 
 /* ─── Glossary state ──────────────────────────────────────────────────────── */
 let _glossaryData = [];   // [{term, definition, source}]

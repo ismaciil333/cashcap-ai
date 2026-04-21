@@ -124,15 +124,10 @@
         </div>
         <div class="topbar-right">
           <div class="context-badges" id="contextBadges"></div>
-          <!-- Sources button -->
-          <button class="sources-toggle-btn" id="sourcesToggleBtn" title="Toggle sources panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            Sources
-          </button>
-          <!-- Glossary button -->
-          <button class="sources-toggle-btn glossary-toggle-btn" id="glossaryToggleBtn" title="Toggle glossary panel">
+          <!-- Desktop: panel is always visible. Mobile: toggle button -->
+          <button class="sources-toggle-btn panel-mobile-toggle" id="panelToggleBtn" title="Toggle reference panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-            Glossary
+            Reference
           </button>
         </div>
       </header>
@@ -218,50 +213,56 @@
           </div>
         </div>
 
-        <!-- ===== SOURCES PANEL ===== -->
-        <div class="sources-panel" id="sourcesPanel">
-          <div class="sources-header">
-            <h3>Sources</h3>
-            <button class="close-sources" id="closeSourcesBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="sources-content" id="sourcesContent">
-            <div class="sources-empty">
-              <div class="sources-empty-icon">📚</div>
-              <p>Sources will appear here after your first query</p>
-            </div>
-          </div>
-        </div>
+        <!-- ===== UNIFIED RIGHT PANEL (always visible desktop, overlay mobile) ===== -->
+        <aside class="sources-panel" id="rightPanel">
 
-        <!-- ===== GLOSSARY PANEL ===== -->
-        <div class="sources-panel glossary-panel" id="glossaryPanel">
+          <!-- Header -->
           <div class="sources-header">
-            <div class="glossary-panel-title">
-              <span>📖</span>
-              <h3>Glossary</h3>
-              <span class="glossary-count-badge" id="glossaryCountBadge"></span>
+            <div class="right-panel-brand">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:16px;height:16px;color:#3b82f6"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+              <span>Reference</span>
             </div>
-            <button class="close-sources" id="closeGlossaryBtn">
+            <button class="close-sources panel-mobile-close" id="closeRightPanelBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <div class="glossary-search-wrap">
-            <input
-              type="text"
-              id="glossarySearch"
-              class="glossary-search"
-              placeholder="Search terms… e.g. MPCA, CVA"
-              autocomplete="off"
-            />
+
+          <!-- Tabs: Glossary (primary) | Sources (secondary) -->
+          <div class="panel-tabs">
+            <button class="panel-tab active" id="tabGlossary">📖 Glossary</button>
+            <button class="panel-tab" id="tabSources">📄 Sources</button>
           </div>
-          <div class="sources-content" id="glossaryList">
-            <div class="sources-empty">
-              <div class="sources-empty-icon">📖</div>
-              <p>Open the Glossary to browse terms</p>
+
+          <!-- GLOSSARY TAB -->
+          <div id="glossaryPane" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+            <div class="glossary-search-wrap">
+              <input
+                type="text"
+                id="glossarySearch"
+                class="glossary-search"
+                placeholder="Search terms… e.g. MPCA, CVA"
+                autocomplete="off"
+              />
+            </div>
+            <div class="sources-content" id="glossaryList">
+              <div class="sources-empty">
+                <div class="sources-empty-icon">📖</div>
+                <p>Loading glossary…</p>
+              </div>
             </div>
           </div>
-        </div>
+
+          <!-- SOURCES TAB -->
+          <div id="sourcesPane" style="display:none; flex:1; overflow:hidden;">
+            <div class="sources-content" id="sourcesContent">
+              <div class="sources-empty">
+                <div class="sources-empty-icon">📚</div>
+                <p>Sources will appear here after your first query</p>
+              </div>
+            </div>
+          </div>
+
+        </aside>
 
       </div>
     </main>

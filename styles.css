@@ -37,6 +37,7 @@
   /* Spacing */
   --sidebar-width: 280px;
   --sources-width: 320px;
+  --right-panel-width: 340px;
   --topbar-height: 56px;
 
   /* Timing */
@@ -707,7 +708,7 @@ ul {
   color: var(--brand-electric);
 }
 
-/* Content Wrapper */
+/* Content Wrapper — 3-column (chat + right panel always visible on desktop) */
 .content-wrapper {
   flex: 1;
   display: flex;
@@ -1274,22 +1275,33 @@ textarea#chatInput::placeholder {
   margin-right: auto;
 }
 
-/* ===== SOURCES PANEL ===== */
+/* ===== RIGHT PANEL — always visible on desktop (3-column layout) ===== */
 .sources-panel {
-  width: 0;
-  background: rgba(20, 25, 38, 0.95);
+  width: var(--right-panel-width);
+  background: rgba(15, 20, 32, 0.98);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-left: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.35s var(--ease-smooth);
   flex-shrink: 0;
 }
 
-.sources-panel.open {
-  width: var(--sources-width);
+/* On mobile → collapse to overlay drawer */
+@media (max-width: 1024px) {
+  .sources-panel {
+    width: 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    transition: width 0.35s var(--ease-smooth);
+  }
+  .sources-panel.open {
+    width: min(var(--right-panel-width), 92vw);
+  }
 }
 
 .sources-header {
@@ -1588,6 +1600,45 @@ textarea#chatInput::placeholder {
 }
 
 /* Count badge (e.g. "118") */
+/* Panel header brand row */
+.right-panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Mobile-only toggle button: hidden on desktop */
+.panel-mobile-toggle {
+  display: none;
+}
+@media (max-width: 1024px) {
+  .panel-mobile-toggle { display: flex; }
+}
+
+/* Desktop: hide the close ✕ button (panel is always there) */
+.panel-mobile-close {
+  visibility: hidden;
+}
+@media (max-width: 1024px) {
+  .panel-mobile-close { visibility: visible; }
+}
+
+/* sourcesPane flex column to let sources-content scroll */
+#sourcesPane {
+  flex-direction: column;
+}
+
+/* Glossary primary tab — active state uses brand cyan */
+#tabGlossary.active {
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--accent-cyan);
+  box-shadow: none;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+}
+
 .glossary-count-badge {
   display: inline-flex;
   align-items: center;
