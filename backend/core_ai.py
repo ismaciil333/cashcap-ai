@@ -1,15 +1,17 @@
-import os
 import json
+import os
 from openai import OpenAI
 
+# ── Debug: confirm key is present at startup ──────────────────────────────────
+print("OPENAI KEY LOADED:", os.getenv("OPENAI_API_KEY") is not None)
+
+# ── Load glossary ─────────────────────────────────────────────────────────────
 current_dir = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(current_dir, "glossary.json")) as f:
     GLOSSARY = json.load(f)
 
-# The client is initialized dynamically inside the function to prevent boot-crashes.
-
-SYSTEM_PROMPT = """
-You are CashCap AI, a humanitarian cash and market systems expert working in the context of Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and humanitarian coordination.
+# ── System prompt ─────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = """You are CashCap AI, a humanitarian cash and market systems expert working in the context of Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and humanitarian coordination.
 
 You MUST:
 - Always interpret questions within a humanitarian context first
@@ -34,19 +36,16 @@ Always structure your answer like:
 
 ### 📌 Key Takeaway
 <short summary>
-
-### 📚 Glossary Update (if needed)
-- <term → definition>
 """
 
-def enhance_query(user_question: str):
-    return f"""
-In a humanitarian and CashCap context:
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def enhance_query(user_question: str) -> str:
+    return f"""In a humanitarian and CashCap context:
 
 User question: {user_question}
 
 Clarify meaning specifically within:
-- CVA
+- CVA (Cash and Voucher Assistance)
 - Market-based programming
 - Humanitarian coordination
 
@@ -55,56 +54,54 @@ If acronym:
 → Explain practical use
 """
 
-def check_glossary(user_question):
+def check_glossary(user_question: str):
     words = user_question.upper().split()
-
     for word in words:
         if word in GLOSSARY:
             return word, GLOSSARY[word]
-
     return None, None
 
-def ask_cashcap_ai(user_question: str):
-    try:
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    except Exception as e:
-        return "Backend Error: Server failed to connect to OpenAI. Is OPENAI_API_KEY set?"
+# ── Main AI function ──────────────────────────────────────────────────────────
+def ask_cashcap_ai(user_question: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        return (
+            "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend. "
+            "Please add it in your Render dashboard under Environment Variables."
+        )
+
+    client = OpenAI(api_key=api_key)
 
     term, definition = check_glossary(user_question)
 
     glossary_context = ""
     if term:
         glossary_context = f"""
-You are given an official glossary from CashCap.
+You are given an official CashCap glossary definition you MUST use:
 
-You MUST use these definitions exactly.
+**{term}**: {definition}
 
-Term:
-{term}
-
-Definition:
-{definition}
-
-If the user asks about this term:
-→ Start your answer with this exact definition
+Start your answer with this exact definition.
 """
 
-    prompt = f"""
-{SYSTEM_PROMPT}
+    full_prompt = f"""{SYSTEM_PROMPT}
 
 {glossary_context}
 
-Question:
 {enhance_query(user_question)}
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": full_prompt},
+            ],
+            temperature=0.3,
+        )
+        return response.choices[0].message.content
 
-    return response.choices[0].message.content
+    except Exception as e:
+        return f"⚠️ **AI Error**: {str(e)}"

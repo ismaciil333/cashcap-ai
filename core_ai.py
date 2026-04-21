@@ -2,10 +2,15 @@ import json
 import os
 from openai import OpenAI
 
+# ── Debug: confirm key is present at startup ──────────────────────────────────
+print("OPENAI KEY LOADED:", os.getenv("OPENAI_API_KEY") is not None)
+
+# ── Load glossary ─────────────────────────────────────────────────────────────
 _dir = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(_dir, "glossary.json")) as f:
     GLOSSARY = json.load(f)
 
+# ── System prompt ─────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = """You are CashCap AI, a humanitarian cash and market systems expert working in the context of Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and humanitarian coordination.
 
 You MUST:
@@ -33,7 +38,8 @@ Always structure your answer like:
 <short summary>
 """
 
-def enhance_query(user_question: str):
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def enhance_query(user_question: str) -> str:
     return f"""In a humanitarian and CashCap context:
 
 User question: {user_question}
@@ -48,22 +54,24 @@ If acronym:
 → Explain practical use
 """
 
-def check_glossary(user_question):
+def check_glossary(user_question: str):
     words = user_question.upper().split()
     for word in words:
         if word in GLOSSARY:
             return word, GLOSSARY[word]
     return None, None
 
-def ask_cashcap_ai(user_question: str):
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        return "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend. Please add it in your Render dashboard under Environment Variables."
+# ── Main AI function ──────────────────────────────────────────────────────────
+def ask_cashcap_ai(user_question: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
 
-    try:
-        client = OpenAI(api_key=api_key)
-    except Exception as e:
-        return f"⚠️ **Backend Error**: Failed to initialise OpenAI client — {str(e)}"
+    if not api_key:
+        return (
+            "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend. "
+            "Please add it in your Render dashboard under Environment Variables."
+        )
+
+    client = OpenAI(api_key=api_key)
 
     term, definition = check_glossary(user_question)
 
@@ -89,10 +97,11 @@ Start your answer with this exact definition.
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": full_prompt}
+                {"role": "user",   "content": full_prompt},
             ],
-            temperature=0.3
+            temperature=0.3,
         )
         return response.choices[0].message.content
+
     except Exception as e:
         return f"⚠️ **AI Error**: {str(e)}"
