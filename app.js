@@ -323,56 +323,50 @@ const API_BASE = "https://cashcap-ai.onrender.com";
  */
 async function getAIResponseStream(message, onChunk) {
   try {
-    const response = await fetch(`${API_BASE}/ask/stream`, {
+    console.log("🔥 streaming start");
+
+    const response = await fetch(`${API_BASE}/api/ask-stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ question: message }),
     });
 
     if (!response.ok) {
-      const msg = `⚠️ Server error (${response.status}): ${response.statusText}`;
+      const msg = `⚠️ Server error (${response.status})`;
+      console.error(msg);
       onChunk(msg);
       return msg;
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+
     let fullText = "";
-    let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
 
-      // SSE lines look like: "data: <text>\n\n"
-      const lines = buffer.split("\n");
-      buffer = lines.pop(); // keep incomplete line
+      fullText += chunk;
 
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const chunk = line.slice(6); // strip "data: "
-        if (chunk === "[DONE]") return fullText;
-        fullText += chunk;
-        onChunk(chunk);
-      }
+      onChunk(fullText); // 🔥 viktig: hele teksten
     }
+
+    console.log("✅ streaming done");
     return fullText;
 
   } catch (error) {
-    console.error("Streaming API error:", error);
-    const msg = "⚠️ Error connecting to CashCap AI backend.";
+    console.error("❌ streaming crash:", error);
+    const msg = "⚠️ Error connecting to backend.";
     onChunk(msg);
     return msg;
   }
 }
 
-async function sendMessage() {
-  const query = els.chatInput.value.trim();
-  if (!query || state.isThinking) return;
-  handleQuery(query);
-}
 
 function detectGlossary(message) {
   if (!window.FULL_GLOSSARY) return;
