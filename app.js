@@ -308,7 +308,12 @@ function onInputKeydown(e) {
     if (!els.sendBtn.disabled) sendMessage();
   }
 }
+async function sendMessage() {
+  const query = els.chatInput.value.trim();
+  if (!query || state.isThinking) return;
 
+  handleQuery(query);
+}
 /* ===== SEND MESSAGE ===== */
 const API_BASE = "https://cashcap-ai.onrender.com";
 
