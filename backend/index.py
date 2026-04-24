@@ -1,17 +1,18 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
-from core_ai import ask_cashcap_ai
+
+from core_ai import ask_cashcap_ai, ask_cashcap_ai_stream
 
 app = FastAPI()
 
-# Legger til CORS slik at nettleseren din (frontend) får lov til å snakke med dette api-et
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tillater forespørsler fra uansett origin under utvikling
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,15 +21,34 @@ app.add_middleware(
 class Question(BaseModel):
     question: str
 
+
+# ✅ NORMAL ENDPOINT (fallback)
 @app.post("/api/ask")
-def ask_question(q: Question):
+async def ask_question(q: Question):
     try:
-        answer = ask_cashcap_ai(q.question)
+        answer = await ask_cashcap_ai(q.question)
         return {"answer": answer}
     except Exception as e:
         return {"answer": f"**API Error**: {str(e)}"}
 
-# Serve frontend files natively from FastAPI for Render compatibility
+
+# 🚀 STREAMING ENDPOINT
+@app.post("/api/ask-stream")
+async def ask_stream(request: Request):
+    data = await request.json()
+    question = data.get("question")
+
+    async def generator():
+        try:
+            async for chunk in ask_cashcap_ai_stream(question):
+                yield chunk
+        except Exception as e:
+            yield f"\n\n⚠️ Error: {str(e)}"
+
+    return StreamingResponse(generator(), media_type="text/plain")
+
+
+# 🌐 Serve frontend (Render)
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 if os.path.exists(os.path.join(base_dir, "index.html")):
