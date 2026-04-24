@@ -323,8 +323,6 @@ const API_BASE = "https://cashcap-ai.onrender.com";
  */
 async function getAIResponseStream(message, onChunk) {
   try {
-    console.log("🔥 streaming start");
-
     const response = await fetch(`${API_BASE}/api/ask-stream`, {
       method: "POST",
       headers: {
@@ -335,7 +333,6 @@ async function getAIResponseStream(message, onChunk) {
 
     if (!response.ok) {
       const msg = `⚠️ Server error (${response.status})`;
-      console.error(msg);
       onChunk(msg);
       return msg;
     }
@@ -344,39 +341,36 @@ async function getAIResponseStream(message, onChunk) {
     const decoder = new TextDecoder();
 
     let fullText = "";
+    let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, { stream: true });
 
-      fullText += chunk;
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
 
-      onChunk(fullText); // 🔥 viktig: hele teksten
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+
+        const chunk = line.replace(/^data:\s*/, "").trim();
+
+        if (chunk === "[DONE]") return fullText;
+
+        fullText += chunk;
+        onChunk(chunk);
+      }
     }
 
-    console.log("✅ streaming done");
     return fullText;
 
   } catch (error) {
-    console.error("❌ streaming crash:", error);
+    console.error("Streaming API error:", error);
     const msg = "⚠️ Error connecting to backend.";
     onChunk(msg);
     return msg;
-  }
-}
-
-
-function detectGlossary(message) {
-  if (!window.FULL_GLOSSARY) return;
-
-  const words = message.toUpperCase().split(/\s+/);
-  for (const word of words) {
-    if (window.FULL_GLOSSARY[word]) {
-      addMessage('ai', `### 📚 Glossary Update\n\n<span style="color:var(--accent-cyan); font-weight:600; font-size:1.05em;">${word}</span> — ${window.FULL_GLOSSARY[word]}`);
-      break;
-    }
   }
 }
 
