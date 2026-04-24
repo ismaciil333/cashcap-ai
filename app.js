@@ -377,23 +377,47 @@ async function handleQuery(query) {
   state.isThinking = true;
   showTyping(true);
 
-  // Fetch real answer from FastAPI backend
-  const answer = await getAIResponse(query);
+// STOP typing indicator (vi viser live i stedet)
+showTyping(false);
 
-  // Retrieve relevant knowledge for source display
-  const sources = searchKnowledge(query, 5);
-  state.currentSources = sources;
+// Lag tom AI-melding først
+const aiMessageEl = createMessageEl({
+  role: 'ai',
+  content: '',
+  sources: [],
+  time: new Date()
+});
 
-  showTyping(false);
-  state.isThinking = false;
+els.messagesContainer.appendChild(aiMessageEl);
+scrollToBottom();
 
-  // Add AI message
-  addMessage('ai', answer, sources);
+const bubble = aiMessageEl.querySelector('.ai-bubble');
 
-  // Update sources panel
-  updateSourcesPanel(sources);
+// STREAMING (🚀 dette er hovedendringen)
+const answer = await getAIResponseStream(query, (partialText) => {
+  bubble.innerHTML = renderMarkdown(partialText);
+  scrollToBottom();
+});
+
+state.isThinking = false;
+
+// Etter stream: hent sources
+const sources = searchKnowledge(query, 5);
+state.currentSources = sources;
+
+// legg til sources UI
+if (sources.length > 0) {
+  const sourceSection = document.createElement('div');
+  sourceSection.className = 'response-section';
+  sourceSection.innerHTML = `
+    <div class="section-badge badge-sources">📚 Sources</div>
+    <div class="source-tags">
+      ${sources.slice(0, 4).map(s => `<span class="source-tag">📄 ${s.org}</span>`).join('')}
+    </div>`;
+  bubble.appendChild(sourceSection);
 }
 
+updateSourcesPanel(sources);
 /* ===== CHAT UI ===== */
 function showChat() {
   els.welcomeScreen.style.display = 'none';
@@ -663,4 +687,36 @@ function formatTime(date) {
 }
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+async function getAIResponseStream(message, onChunk) {
+  try {
+    const response = await fetch("https://cashcap-ai.onrender.com/api/ask-stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: message }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      fullText += chunk;
+
+      onChunk(fullText);
+    }
+
+    return fullText;
+
+  } catch (error) {
+    console.error("Streaming error:", error);
+    return "⚠️ Error connecting to backend.";
+  }
 }
