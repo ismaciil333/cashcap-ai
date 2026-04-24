@@ -1,13 +1,14 @@
 import json
 import os
+from typing import Generator
 from openai import OpenAI
 
 # ── Debug: confirm key is present at startup ──────────────────────────────────
 print("OPENAI KEY LOADED:", os.getenv("OPENAI_API_KEY") is not None)
 
 # ── Load glossary ─────────────────────────────────────────────────────────────
-_dir = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_dir, "glossary.json")) as f:
+current_dir = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(current_dir, "glossary.json")) as f:
     GLOSSARY = json.load(f)
 
 # ── System prompt ─────────────────────────────────────────────────────────────
@@ -105,3 +106,51 @@ Start your answer with this exact definition.
 
     except Exception as e:
         return f"⚠️ **AI Error**: {str(e)}"
+
+
+# ── Streaming version ─────────────────────────────────────────────────────────
+def ask_cashcap_ai_stream(user_question: str) -> Generator[str, None, None]:
+    """Yields text chunks as they stream from OpenAI."""
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        yield "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend."
+        return
+
+    client = OpenAI(api_key=api_key)
+
+    term, definition = check_glossary(user_question)
+    glossary_context = ""
+    if term:
+        glossary_context = f"""
+You are given an official CashCap glossary definition you MUST use:
+
+**{term}**: {definition}
+
+Start your answer with this exact definition.
+"""
+
+    full_prompt = f"""{SYSTEM_PROMPT}
+
+{glossary_context}
+
+{enhance_query(user_question)}
+"""
+
+    try:
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": full_prompt},
+            ],
+            temperature=0.3,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+    except Exception as e:
+        yield f"⚠️ **AI Error**: {str(e)}"
