@@ -1,9 +1,11 @@
 import json
 import os
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 # ── Debug: confirm key is present at startup ──────────────────────────────────
 print("OPENAI KEY LOADED:", os.getenv("OPENAI_API_KEY") is not None)
+
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ── Load glossary ─────────────────────────────────────────────────────────────
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,17 +63,13 @@ def check_glossary(user_question: str):
             return word, GLOSSARY[word]
     return None, None
 
-# ── Main AI function ──────────────────────────────────────────────────────────
-def ask_cashcap_ai(user_question: str) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
 
-    if not api_key:
+# ── NORMAL (fallback) ─────────────────────────────────────────────────────────
+async def ask_cashcap_ai(user_question: str) -> str:
+    if not os.getenv("OPENAI_API_KEY"):
         return (
-            "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend. "
-            "Please add it in your Render dashboard under Environment Variables."
+            "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set."
         )
-
-    client = OpenAI(api_key=api_key)
 
     term, definition = check_glossary(user_question)
 
@@ -93,7 +91,7 @@ Start your answer with this exact definition.
 """
 
     try:
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -101,7 +99,53 @@ Start your answer with this exact definition.
             ],
             temperature=0.3,
         )
+
         return response.choices[0].message.content
 
     except Exception as e:
         return f"⚠️ **AI Error**: {str(e)}"
+
+
+# 🚀 STREAMING (MAIN PERFORMANCE FIX)
+async def ask_cashcap_ai_stream(user_question: str):
+    if not os.getenv("OPENAI_API_KEY"):
+        yield "⚠️ API key missing."
+        return
+
+    term, definition = check_glossary(user_question)
+
+    glossary_context = ""
+    if term:
+        glossary_context = f"""
+You are given an official CashCap glossary definition you MUST use:
+
+**{term}**: {definition}
+
+Start your answer with this exact definition.
+"""
+
+    full_prompt = f"""{SYSTEM_PROMPT}
+
+{glossary_context}
+
+{enhance_query(user_question)}
+"""
+
+    try:
+        stream = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": full_prompt},
+            ],
+            temperature=0.3,
+            stream=True,  # 🔥 viktig
+        )
+
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+    except Exception as e:
+        yield f"\n\n⚠️ **Streaming Error**: {str(e)}"
