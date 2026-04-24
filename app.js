@@ -310,31 +310,56 @@ function onInputKeydown(e) {
 }
 
 /* ===== SEND MESSAGE ===== */
-async function getAIResponse(message) {
+const API_BASE = "https://cashcap-ai.onrender.com";
+
+/**
+ * Streaming fetch — renders AI text word-by-word as chunks arrive.
+ * Calls onChunk(text) for each piece, resolves with full text when done.
+ */
+async function getAIResponseStream(message, onChunk) {
   try {
-    const response = await fetch("https://cashcap-ai.onrender.com/ask", {  // ✅ RIKTIG ENDPOINT
+    const response = await fetch(`${API_BASE}/ask/stream`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: message }),
     });
 
     if (!response.ok) {
-      try {
-        const errorData = await response.json();
-        return `⚠️ Error from server: ${errorData.answer || errorData.detail || response.statusText}`;
-      } catch (err) {
-        return `⚠️ Error from server (${response.status}): ${response.statusText}`;
-      }
+      const msg = `⚠️ Server error (${response.status}): ${response.statusText}`;
+      onChunk(msg);
+      return msg;
     }
 
-    const data = await response.json();
-    return data.answer;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = "";
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE lines look like: "data: <text>\n\n"
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // keep incomplete line
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const chunk = line.slice(6); // strip "data: "
+        if (chunk === "[DONE]") return fullText;
+        fullText += chunk;
+        onChunk(chunk);
+      }
+    }
+    return fullText;
 
   } catch (error) {
-    console.error("API error:", error);
-    return "⚠️ Error connecting to CashCap AI backend.";
+    console.error("Streaming API error:", error);
+    const msg = "⚠️ Error connecting to CashCap AI backend.";
+    onChunk(msg);
+    return msg;
   }
 }
 
@@ -373,22 +398,47 @@ async function handleQuery(query) {
   // Fast glossary detection feedback in UI
   detectGlossary(query);
 
-  // Think
+  // Start thinking state
   state.isThinking = true;
   showTyping(true);
 
-  // Fetch real answer from FastAPI backend
-  const answer = await getAIResponse(query);
-
-  // Retrieve relevant knowledge for source display
+  // ── Create an empty AI bubble to stream into ──────────────────────────────
   const sources = searchKnowledge(query, 5);
   state.currentSources = sources;
 
-  showTyping(false);
-  state.isThinking = false;
+  // Hide typing indicator and create the bubble as soon as first chunk arrives
+  let bubbleEl = null;
+  let rawText = "";
+  let firstChunk = true;
 
-  // Add AI message
-  addMessage('ai', answer, sources);
+  await getAIResponseStream(query, (chunk) => {
+    if (firstChunk) {
+      showTyping(false);
+      // Insert skeleton AI message
+      bubbleEl = addStreamingMessage(sources);
+      firstChunk = false;
+    }
+    rawText += chunk;
+    // Re-render markdown on every chunk so formatting appears progressively
+    if (bubbleEl) {
+      bubbleEl.innerHTML = renderMarkdown(rawText);
+      scrollToBottom();
+    }
+  });
+
+  // If no chunk ever arrived (network error before first byte)
+  if (firstChunk) {
+    showTyping(false);
+    addMessage('ai', rawText || '⚠️ No response received.', sources);
+  } else if (bubbleEl) {
+    // Final render + glossary highlights after stream completes
+    bubbleEl.innerHTML = renderMarkdown(rawText);
+    requestAnimationFrame(() => highlightGlossaryTerms(bubbleEl));
+    scrollToBottom();
+  }
+
+  state.isThinking = false;
+  els.sendBtn.disabled = false;
 
   // Update sources panel
   updateSourcesPanel(sources);
