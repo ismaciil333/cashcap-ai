@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Generator
 from openai import OpenAI
 
@@ -12,145 +13,297 @@ with open(os.path.join(current_dir, "glossary.json")) as f:
     GLOSSARY = json.load(f)
 
 # ── System prompt ─────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are CashCap AI, a humanitarian cash and market systems expert working in the context of Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and humanitarian coordination.
+SYSTEM_PROMPT = """
+You are CashCap AI — a senior humanitarian advisor specialising in Cash and Voucher Assistance (CVA), Market-Based Programming (MBP), and inter-agency coordination. You operate at the intersection of policy, field implementation, and donor accountability.
 
-You MUST:
-- Always interpret questions within a humanitarian context first
-- Avoid generic meanings
-- Clearly define acronyms (AA, MPCA, CWG, etc.)
-- Provide practical, field-relevant insights
-- Think like a CashCap advisor
+Your knowledge base draws from CaLP, OCHA, the Sphere Standards, the Grand Bargain, IASC guidance, and field experience across acute, protracted, and recovery contexts.
 
-If a question is short or ambiguous:
-→ Interpret it in a humanitarian context
+═══════════════════════════════════════════
+FORMATTING — ZERO TOLERANCE RULES
+═══════════════════════════════════════════
+The following are FORBIDDEN in every response, without exception:
 
-If no document context is available:
-→ Answer using humanitarian best practices
+  FORBIDDEN: ** (double asterisks for bold) — e.g. **CVA**, **important**
+  FORBIDDEN: *  (single asterisks for italic) — e.g. *emphasis*
+  FORBIDDEN: Bullet points of any kind — e.g. -, •, *, –
+  FORBIDDEN: Numbered lists — e.g. 1. 2. 3.
+  FORBIDDEN: Markdown headers beyond ### Answer / ### Operational Insight / ### Key Takeaway
+  FORBIDDEN: Filler openers — "Great question!", "Certainly!", "Of course!", "Sure!"
+  FORBIDDEN: Repetitive openers — "This means...", "It involves...", "Essentially..."
 
-Always structure your answer like:
+If you catch yourself about to write any of the above, STOP and rewrite in paragraph form.
 
-### 🔍 Answer
-<clear explanation>
+The ONLY permitted emphasis format is the inline label:
+  CVA — sentence continues here naturally.
+  Market-Based Programming — sentence continues here naturally.
+  Coordination — sentence continues here naturally.
 
-### ⚙️ Practical Insight
-<real-world use>
+Each label MUST flow into a full prose paragraph, not a one-liner.
 
-### 📌 Key Takeaway
-<short summary>
+═══════════════════════════════════════════
+MANDATORY RESPONSE STRUCTURE — DO NOT DEVIATE
+═══════════════════════════════════════════
+
+### Answer
+A concise, authoritative explanation written entirely in prose paragraphs.
+If the topic spans CVA, MBP, and coordination, use inline labels (Term —) to
+address each dimension. No bullets. No bold. No numbered lists. Plain sentences only.
+
+### Operational Insight
+One or two paragraphs explaining how this concept applies in real humanitarian
+settings. Focus on decision-making, implementation trade-offs, coordination
+realities, and relevant tools or frameworks. Write as connected prose — no lists.
+
+### Key Takeaway
+Exactly one sentence. Executive-level. Suitable for direct use in a donor report
+or CaLP training document. No markdown. No formatting. Plain and precise.
+
+═══════════════════════════════════════════
+TONE & LANGUAGE
+═══════════════════════════════════════════
+Write in clear, formal, authoritative English. Sound like a field-informed
+technical advisor — not a textbook, not a generic AI, not a student explanation.
+Assume the reader is a humanitarian professional. Do not over-explain basics.
+
+Use precise CVA terminology: modalities, targeting mechanisms, delivery systems,
+market functionality, transfer value, MPCA, CWGs, MARKITs, accountability
+frameworks, needs-based targeting, multipurpose cash assistance.
+
+Expand acronyms on first use, then use them freely.
+
+═══════════════════════════════════════════
+CONTENT DEPTH
+═══════════════════════════════════════════
+Every answer must reflect decision-making logic, not just definitions.
+Integrate CVA, MBP, and coordination logic as a coherent whole.
+Emphasise dignity and choice, market functionality, coordination efficiency,
+and system-level impact.
+
+If a glossary definition is provided, anchor your prose to it and build outward.
+Do not quote it verbatim. Do not treat it as the entire answer.
+
+═══════════════════════════════════════════
+QUALITY STANDARD
+═══════════════════════════════════════════
+Every response must read like:
+  A section from a CashCap deployment briefing
+  A paragraph from a donor proposal
+  An excerpt from a CaLP training module
+  A CashCap internal knowledge note — clean, structured, immediately usable
 """
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Rewrite prompt (used only by the fallback validator) ─────────────────────
+REWRITE_PROMPT = """
+You are a CashCap AI quality editor. The response below was generated by a humanitarian AI advisor but does NOT meet the required output standard.
+
+Your task: rewrite it so it fully complies with the following rules.
+
+REWRITE RULES (non-negotiable):
+- Remove ALL instances of ** (bold) and * (italic) markdown
+- Remove ALL bullet points (-, •, *, –) and numbered lists (1. 2. 3.)
+- Convert every list item into a flowing prose sentence or paragraph
+- Use inline labels where helpful: "CVA — sentence continues.", "MBP — sentence continues."
+- Keep the ### Answer / ### Operational Insight / ### Key Takeaway structure
+- Maintain the same factual content and depth — do not summarise or shorten
+- Write at the level of a CashCap deployment briefing or CaLP training document
+- Do not add any new markdown formatting
+
+Output only the rewritten response. No meta-commentary. No explanation.
+
+ORIGINAL RESPONSE TO REWRITE:
+"""
+
+
+# ── Quality check ─────────────────────────────────────────────────────────────
+def _has_formatting_violations(text: str) -> bool:
+    """Returns True if the response contains forbidden markdown patterns."""
+    patterns = [
+        r'\*\*.+?\*\*',          # **bold**
+        r'(?<!\*)\*(?!\*)[\w]',  # *italic* (single asterisk)
+        r'^\s*[-•–]\s+',         # bullet points
+        r'^\s*\d+\.\s+',         # numbered lists
+    ]
+    for pattern in patterns:
+        if re.search(pattern, text, re.MULTILINE):
+            return True
+    return False
+
+
+def _rewrite_premium(client: OpenAI, raw_response: str) -> str:
+    """
+    Sends the non-compliant response back to the model for a single
+    corrective rewrite pass. Fast, cheap (gpt-4o-mini), non-streaming.
+    """
+    try:
+        correction = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": REWRITE_PROMPT},
+                {"role": "user",   "content": raw_response},
+            ],
+            temperature=0.2,   # lower temp = more compliant rewrite
+        )
+        return correction.choices[0].message.content
+    except Exception:
+        # If rewrite fails for any reason, return the original
+        return raw_response
+
+
+# ── Query builder ─────────────────────────────────────────────────────────────
 def enhance_query(user_question: str) -> str:
-    return f"""In a humanitarian and CashCap context:
+    # ── Detect short / acronym-only queries and force full expansion ──────────
+    is_short_query = len(user_question.strip().split()) <= 3
 
-User question: {user_question}
+    if is_short_query:
+        expansion_rule = (
+            f"The input '{user_question}' is a short or acronym-based query. "
+            "Do NOT treat this as a glossary lookup. "
+            "Instead, expand it into a full, professional 3-part response as if the user asked: "
+            f"'What is {user_question} and how does it function within humanitarian response?' "
+            "Use the mandatory Answer → Operational Insight → Key Takeaway structure. "
+            "Write entirely in prose paragraphs. No lists. No bold."
+        )
+    else:
+        expansion_rule = (
+            "Ground your answer in CVA modality design, market systems thinking, "
+            "or humanitarian coordination as relevant. "
+            "Reflect decision-making logic, not just definitions. "
+            "Define acronyms on first use, then use them freely."
+        )
 
-Clarify meaning specifically within:
-- CVA (Cash and Voucher Assistance)
-- Market-based programming
-- Humanitarian coordination
+    return f"""You are responding as a senior CashCap advisor. The question has been asked by a humanitarian professional — likely a CVA specialist, cluster coordinator, or programme manager.
 
-If acronym:
-→ Define clearly
-→ Explain practical use
+Question: {user_question}
+
+FORMATTING — confirm before writing:
+  No ** or * markdown anywhere in your response
+  No bullet points, no numbered lists
+  All content in connected prose paragraphs (2–4 lines each)
+  For multi-dimensional answers use: "CVA — sentence." / "MBP — sentence."
+  Structure: ### Answer → ### Operational Insight → ### Key Takeaway
+
+CONTENT:
+  {expansion_rule}
 """
+
 
 def check_glossary(user_question: str):
-    words = user_question.upper().split()
-    for word in words:
+    """
+    Only activate glossary context for substantive questions (more than 3 words).
+    Single-word or very short inputs (e.g. 'wfp', 'ocha', 'cva') must NOT trigger
+    glossary-override mode — they get the full 3-part professional answer instead.
+    """
+    words = user_question.strip().split()
+    if len(words) <= 3:
+        # Short query: no glossary injection — treat as a full expansion request
+        return None, None
+
+    upper_words = user_question.upper().split()
+    for word in upper_words:
         if word in GLOSSARY:
             return word, GLOSSARY[word]
     return None, None
 
-# ── Main AI function ──────────────────────────────────────────────────────────
-def ask_cashcap_ai(user_question: str) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
 
-    if not api_key:
-        return (
-            "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend. "
-            "Please add it in your Render dashboard under Environment Variables."
-        )
-
-    client = OpenAI(api_key=api_key)
-
+def build_prompt(user_question: str) -> tuple[str, str]:
+    """Returns (system_message, user_message) for the API call."""
     term, definition = check_glossary(user_question)
 
     glossary_context = ""
     if term:
-        glossary_context = f"""
-You are given an official CashCap glossary definition you MUST use:
+        # ── CRITICAL: glossary is SILENT BACKGROUND CONTEXT only ─────────────
+        # It must NEVER appear inline as "TERM: definition".
+        # It must NEVER dominate or replace the Answer section.
+        # The model must weave it naturally into prose — not quote it.
+        glossary_context = (
+            f"BACKGROUND CONTEXT (do not quote or display this directly — "
+            f"weave it naturally into your prose if relevant): "
+            f"{term} refers to: {definition}\n\n"
+        )
 
-**{term}**: {definition}
+    user_message = f"{glossary_context}{enhance_query(user_question)}"
+    return SYSTEM_PROMPT, user_message
 
-Start your answer with this exact definition.
-"""
 
-    full_prompt = f"""{SYSTEM_PROMPT}
+# ── Non-streaming endpoint ────────────────────────────────────────────────────
+def ask_cashcap_ai(user_question: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return (
+            "Server Configuration Error: OPENAI_API_KEY is not set on the backend. "
+            "Please add it in your Render dashboard under Environment Variables."
+        )
 
-{glossary_context}
-
-{enhance_query(user_question)}
-"""
+    client = OpenAI(api_key=api_key)
+    system_msg, user_msg = build_prompt(user_question)
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": full_prompt},
+                {"role": "system", "content": system_msg},
+                {"role": "user",   "content": user_msg},
             ],
             temperature=0.3,
         )
-        return response.choices[0].message.content
+        raw = response.choices[0].message.content
+
+        # ── Quality gate: auto-rewrite if formatting violations detected ──────
+        if _has_formatting_violations(raw):
+            print("[CashCap QA] Formatting violation detected — rewriting...")
+            return _rewrite_premium(client, raw)
+
+        return raw
 
     except Exception as e:
-        return f"⚠️ **AI Error**: {str(e)}"
+        return f"AI Error: {str(e)}"
 
 
-# ── Streaming version ─────────────────────────────────────────────────────────
+# ── Streaming endpoint ────────────────────────────────────────────────────────
 def ask_cashcap_ai_stream(user_question: str) -> Generator[str, None, None]:
-    """Yields text chunks as they stream from OpenAI."""
+    """
+    Streams the response. Collects the full text, runs quality check,
+    and either streams the original or yields the corrected version.
+    """
     api_key = os.getenv("OPENAI_API_KEY")
-
     if not api_key:
-        yield "⚠️ **Server Configuration Error**: `OPENAI_API_KEY` is not set on the backend."
+        yield "Server Configuration Error: OPENAI_API_KEY is not set on the backend."
         return
 
     client = OpenAI(api_key=api_key)
-
-    term, definition = check_glossary(user_question)
-    glossary_context = ""
-    if term:
-        glossary_context = f"""
-You are given an official CashCap glossary definition you MUST use:
-
-**{term}**: {definition}
-
-Start your answer with this exact definition.
-"""
-
-    full_prompt = f"""{SYSTEM_PROMPT}
-
-{glossary_context}
-
-{enhance_query(user_question)}
-"""
+    system_msg, user_msg = build_prompt(user_question)
 
     try:
         stream = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": full_prompt},
+                {"role": "system", "content": system_msg},
+                {"role": "user",   "content": user_msg},
             ],
             temperature=0.3,
             stream=True,
         )
+
+        # Collect full streamed text
+        full_text = ""
+        chunks = []
         for chunk in stream:
             delta = chunk.choices[0].delta.content
             if delta:
-                yield delta
+                full_text += delta
+                chunks.append(delta)
+
+        # ── Quality gate ──────────────────────────────────────────────────────
+        if _has_formatting_violations(full_text):
+            print("[CashCap QA] Formatting violation in stream — rewriting...")
+            corrected = _rewrite_premium(client, full_text)
+            # Yield the corrected text in small chunks for smooth streaming UX
+            for i in range(0, len(corrected), 6):
+                yield corrected[i:i+6]
+        else:
+            # No violations — yield original chunks as-is
+            for c in chunks:
+                yield c
 
     except Exception as e:
-        yield f"⚠️ **AI Error**: {str(e)}"
+        yield f"AI Error: {str(e)}"

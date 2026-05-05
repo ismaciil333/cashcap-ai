@@ -205,6 +205,28 @@ ul {
   gap: 10px;
 }
 
+/* ── Logo as home button ───────────────────────────────────────────────────── */
+#logoHome {
+  cursor: pointer;
+  transition: filter 0.18s ease, opacity 0.18s ease;
+  border-radius: 8px;
+  outline: none;
+}
+
+#logoHome:hover {
+  filter: brightness(1.18);
+}
+
+#logoHome:active {
+  filter: brightness(0.88);
+  opacity: 0.85;
+}
+
+#logoHome:focus-visible {
+  box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+
 .logo-icon {
   width: 36px;
   height: 36px;
